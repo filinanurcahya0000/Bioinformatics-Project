@@ -1,0 +1,100 @@
+---
+title: "BCH339N Machine Learning Project"
+author: "Filina Nurcahya-Tjoa"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library('randomForest')
+library('caret')
+library('ggfortify')
+library('tidyverse')
+library('rpart.plot')
+library('naivebayes')
+```
+
+Loading and Preparing the Data
+
+```{r}
+set.seed(101)
+
+setwd("/Users/filinanurcahya/Desktop/thingstogetdone/Homework : School/BCH339N -Project/")
+testing <- read.csv('testing.csv')
+testingvariables <- testing[,c(1:132)]
+training <- read.csv('training.csv')
+training <- training[,-134]
+trainingvariables <- training[,c(1:132)]
+
+choices <- colnames(training) %>% str_replace_all('_|\\.|[0-9]', ' ') %>% 
+    str_to_title()
+choices_01 <- colnames(training[,c(1:132)]) %>% str_replace_all('_|\\.|[0-9]', ' ') %>% str_to_title()
+
+colnames(testing) <- choices
+colnames(training) <- choices
+
+colnames(testingvariables) <- choices_01
+colnames(trainingvariables) <- choices_01
+```
+
+Descriptive Statistics 
+
+```{r}
+unique(training$Prognosis)
+```
+
+Explanatory Analysis : Correlation
+
+```{r}
+correlation <- data.frame()
+for(i in seq(ncol(testingvariables))){
+  sample_1 <- testingvariables[, i]
+  sample_1 <- apply(testingvariables, 2, function(x){sum(x == sample_1)/length(sample_1)})
+  correlation <- rbind(correlation, sample_1)
+}
+colnames(correlation) <- colnames(testingvariables)
+rownames(correlation) <- colnames(testingvariables)
+correlation <- as.matrix(correlation)
+heatmap(correlation)
+```
+
+PCA - We are going to subset a small group of conditions from the training data and try to see if they would cluster together (doing the whole training data set would lead to too many variables)
+
+```{r}
+PCA_subset <- training
+
+pca1 <- prcomp(PCA_subset[,c(1:132)])
+summary(pca1)
+
+autoplot(pca1, data = PCA_subset, colour = 'Prognosis')
+```
+
+Naive Bayes
+
+```{r}
+NaiveBayes <- naive_bayes(as.factor(Prognosis) ~ ., data = training, method = 'class')
+Predictions <- predict(NaiveBayes, newdata = testingvariables)
+ConfusionMatrix <- table(testing$Prognosis, Predictions)
+confusionMatrix(ConfusionMatrix)
+```
+
+Random Forest 
+
+```{r}
+names(training) <- make.names(names(training))
+names(testingvariables) <- make.names(names(testingvariables))
+RandomForest <- randomForest(as.factor(Prognosis) ~ ., data = training, method = 'class')
+Predictions <- predict(RandomForest, newdata = testingvariables)
+ConfusionMatrix <- table(testing$Prognosis, Predictions)
+confusionMatrix(ConfusionMatrix)
+
+RandomForest1 <- randomForest(as.factor(Prognosis) ~ ., data = training, method = 'class')
+
+
+#save(RandomForest, file = "RandomForestModel.Rdata")
+
+```
+
+
+
